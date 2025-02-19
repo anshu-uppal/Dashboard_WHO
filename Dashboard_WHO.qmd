@@ -103,7 +103,6 @@ filtered_setting <- reactive({
 This dashboard uses data from the WHO's ["Health Inequality Data Repository"](https://www.who.int/data/inequality-monitor/data):  
 
 -  [Childhood immunization (DHS/MICS/RHS re-analyzed by ICEH)](https://www.who.int/data/sets/health-inequality-monitor-dataset#immunization) (updated October 2024)  
--  ff
 :::
 
 ```{r}
@@ -117,7 +116,7 @@ output$plot <- renderPlot({
         )
 })
 
-# Create the ESS-like table
+# Create the ESS-like table (still issues rendering this)
 output$table <- renderUI(
         htmltools_value(
                 make_table(
@@ -135,8 +134,8 @@ output$table <- renderUI(
 plotOutput("plot")
 ```
 
-# Table
-```{r}
-uiOutput("table")
-```
+<!-- # Table -->
+<!-- ```{r} -->
+<!-- uiOutput("table") -->
+<!-- ``` -->
 
