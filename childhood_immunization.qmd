@@ -20,16 +20,20 @@ pacman::p_load(
         shinyWidgets,
         quarto,
         here,
-        tidyverse
+        tidyverse,
+        flextable,
+        DT
 )
 source(here::here("code", "utils.R"))
 
 # Load data
 rep_imm <- read_rds(here::here("data", "rep_imm", "rep_imm.rds")) |> 
-        mutate(date = ymd(paste0(date, "-01-01"))) |> # convert to date format
+        mutate(
+                year = sprintf("%1.0f",date),
+                date = ymd(paste0(date, "-01-01"))) |> # convert to date format
         mutate(full_estimate = paste0(sprintf("%1.1f",estimate), "% [", 
-                                       sprintf("%1.1f",ci_lb), "-",
-                                       sprintf("%1.1f",ci_ub), "]")) |> 
+                                      sprintf("%1.1f",ci_lb), "-",
+                                      sprintf("%1.1f",ci_ub), "]")) |> 
         filter(!str_detect(flag, "Not available")) # remove rows with irrelevant data
 # filter(dimension != "Subnational region") # remove subnational region
 ```
@@ -104,7 +108,7 @@ This dashboard uses data from the WHO's ["Health Inequality Data Repository"](ht
 
 ```{r}
 #| context: server
-output$esslike_plot <- renderPlot({
+output$plot <- renderPlot({
         make_lineplot(
                 dataset = filtered_setting(), 
                 # whoreg6_choice = input$selected_region,
@@ -112,9 +116,27 @@ output$esslike_plot <- renderPlot({
                 dimension_choice = input$selected_dimension
         )
 })
+
+# Create the ESS-like table
+output$table <- renderUI(
+        htmltools_value(
+                make_table(
+                        dataset = filtered_setting(),
+                        caption_indicator = input$selected_indicator, 
+                        caption_dimension = input$selected_dimension
+                )
+        )
+)
+
 ```
 
-# Interactive plots
+# Plot
 ```{r}
-plotOutput("esslike_plot")
+plotOutput("plot")
 ```
+
+# Table
+```{r}
+uiOutput("table")
+```
+
