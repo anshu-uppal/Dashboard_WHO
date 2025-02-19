@@ -22,7 +22,8 @@ pacman::p_load(
         here,
         tidyverse,
         flextable,
-        DT
+        DT,
+        plotly
 )
 source(here::here("code", "utils.R"))
 
@@ -35,7 +36,8 @@ rep_imm <- read_rds(here::here("data", "rep_imm", "rep_imm.rds")) |>
                                       sprintf("%1.1f",ci_lb), "-",
                                       sprintf("%1.1f",ci_ub), "]")) |> 
         filter(!str_detect(flag, "Not available")) # remove rows with irrelevant data
-# filter(dimension != "Subnational region") # remove subnational region
+
+rep_unaids_hiv <- read_rds(here::here("data", "rep_unaids_hiv", "rep_unaids_hiv.rds")) 
 ```
 
 #  {.sidebar width="320px"}
@@ -103,18 +105,38 @@ filtered_setting <- reactive({
 This dashboard uses data from the WHO's ["Health Inequality Data Repository"](https://www.who.int/data/inequality-monitor/data):  
 
 -  [Childhood immunization (DHS/MICS/RHS re-analyzed by ICEH)](https://www.who.int/data/sets/health-inequality-monitor-dataset#immunization) (updated October 2024)  
+
+Next steps:  
+
+-  Add confidence intervals to plots  
+-  Add table for setting selections  
+-  Add mapping component to country selection  
 :::
 
 ```{r}
 #| context: server
-output$plot <- renderPlot({
-        make_lineplot(
+# output$plot <- renderPlot({
+#         make_lineplot(
+#                 dataset = filtered_setting(), 
+#                 # whoreg6_choice = input$selected_region,
+#                 indicator_name_choice = input$selected_indicator, 
+#                 dimension_choice = input$selected_dimension
+#         )
+# })
+
+output$plotly_plot <- renderPlotly({ 
+    p <- make_lineplot(
                 dataset = filtered_setting(), 
                 # whoreg6_choice = input$selected_region,
                 indicator_name_choice = input$selected_indicator, 
                 dimension_choice = input$selected_dimension
         )
-})
+
+    ggplotly(
+            p,
+            tooltip = c("full_estimate", "year", "subgroup", "population")
+                    ) 
+  }) 
 
 # Create the ESS-like table (still issues rendering this)
 output$table <- renderUI(
@@ -129,9 +151,14 @@ output$table <- renderUI(
 
 ```
 
-# Plot
+<!-- # Plot -->
+<!-- ```{r} -->
+<!-- plotOutput("plot") -->
+<!-- ``` -->
+
+# Setting plots
 ```{r}
-plotOutput("plot")
+plotlyOutput(outputId = "plotly_plot")
 ```
 
 <!-- # Table -->
