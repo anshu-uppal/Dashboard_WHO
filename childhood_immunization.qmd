@@ -1,0 +1,119 @@
+---
+title: "Childhood Immunization"
+author: "Anshu Uppal"
+format: 
+        dashboard:
+                orientation: columns
+                nav-buttons: [github]
+                github: https://github.com/anshu-uppal/Dashboard_practice
+server: shiny
+
+---
+
+```{r}
+#| context: setup
+#| message: false
+
+# Load packages
+pacman::p_load(
+        shiny,
+        shinyWidgets,
+        quarto,
+        here,
+        tidyverse
+)
+source(here::here("code", "utils.R"))
+
+# Load data
+rep_imm <- read_rds(here::here("data", "rep_imm", "rep_imm.rds")) |> 
+        mutate(date = ymd(paste0(date, "-01-01"))) |> # convert to date format
+        mutate(full_estimate = paste0(sprintf("%1.1f",estimate), "% [", 
+                                       sprintf("%1.1f",ci_lb), "-",
+                                       sprintf("%1.1f",ci_ub), "]")) |> 
+        filter(!str_detect(flag, "Not available")) # remove rows with irrelevant data
+# filter(dimension != "Subnational region") # remove subnational region
+```
+
+::: callout-note
+This project is an example of a dashboard for internal use, to automatically generate common plots and tables used for downstream reporting.
+
+The underlying data are from the WHO
+:::
+
+#  {.sidebar width="320px"}
+```{r}
+# Create the dropdown selection objects
+
+# Select the Region
+selectInput("selected_region", "Select Region:", 
+            choices = c("All", unique(rep_imm$whoreg6)), 
+            selected = "European")
+
+# Select the Setting
+selectInput("selected_setting", "Select Setting:", 
+            choices = unique(rep_imm$setting),
+            multiple = TRUE
+            # , options = pickerOptions(
+            #         actionsBox = TRUE,
+            #         selectOnTab = TRUE
+            # )
+)
+
+# Select the Indicator
+selectInput("selected_indicator", "Select Indicator:", 
+            choices = unique(rep_imm$indicator_name))
+
+# Select the Dimension
+selectInput("selected_dimension", "Select Dimension:", 
+            choices = unique(rep_imm$dimension))
+```
+
+```{r}
+#| context: server
+# Reactive expression to filter data to chosen Region
+filtered_region <- reactive({
+        if(input$selected_region == "All") {
+                rep_imm
+        } else{
+                rep_imm |> filter(whoreg6 == input$selected_region) |> droplevels()
+        }
+})
+
+# Observe changes in the 'selected_region' input, and update setting choices
+observeEvent(input$selected_region, {
+        # Update the choices in the 'selected_indicateur' input
+        updateSelectInput(
+                session, "selected_setting",
+                choices = sort(unique(filtered_region()$setting))
+        )
+})
+
+filtered_setting <- reactive({
+        if(length(input$selected_setting) == 0 || is.null(input$selected_setting)) {
+                filtered_region()
+        } else{
+                filtered_region() |>
+                        filter(setting %in% c(input$selected_setting)) |>
+                        mutate(setting = fct_relevel(setting, c(input$selected_setting))) |>
+                        droplevels()
+        }
+})
+
+```
+
+```{r}
+#| context: server
+output$esslike_plot <- renderPlot({
+        make_lineplot(
+                dataset = filtered_setting(), 
+                # whoreg6_choice = input$selected_region,
+                indicator_name_choice = input$selected_indicator, 
+                dimension_choice = input$selected_dimension
+        )
+})
+```
+
+# Interactive plots
+```{r}
+plotOutput("esslike_plot")
+```
