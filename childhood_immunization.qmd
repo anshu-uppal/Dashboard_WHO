@@ -34,12 +34,6 @@ rep_imm <- read_rds(here::here("data", "rep_imm", "rep_imm.rds")) |>
 # filter(dimension != "Subnational region") # remove subnational region
 ```
 
-::: callout-note
-This project is an example of a dashboard for internal use, to automatically generate common plots and tables used for downstream reporting.
-
-The underlying data are from the WHO
-:::
-
 #  {.sidebar width="320px"}
 ```{r}
 # Create the dropdown selection objects
@@ -100,6 +94,13 @@ filtered_setting <- reactive({
 })
 
 ```
+
+::: callout-note
+This dashboard uses data from the WHO's ["Health Inequality Data Repository"](https://www.who.int/data/inequality-monitor/data):  
+
+-  [Childhood immunization (DHS/MICS/RHS re-analyzed by ICEH)](https://www.who.int/data/sets/health-inequality-monitor-dataset#immunization) (updated October 2024)  
+-  ff
+:::
 
 ```{r}
 #| context: server
