@@ -16,42 +16,80 @@ server: shiny
 
 # Load packages
 pacman::p_load(
-        shiny,
-        shinyWidgets,
-        quarto,
-        here,
-        tidyverse,
-        flextable,
-        DT,
-        plotly
+  shiny,
+  shinyWidgets,
+  quarto,
+  here,
+  tidyverse,
+  flextable,
+  DT,
+  plotly
 )
 source(here::here("code", "utils.R"))
 
 # Load data
-rep_imm <- read_rds(here::here("data", "rep_imm", "rep_imm.rds")) |> 
-        mutate(
-                year = sprintf("%1.0f",date),
-                date = ymd(paste0(date, "-01-01"))) |> # convert to date format
-        mutate(full_estimate = paste0(sprintf("%1.1f",estimate), "% [", 
-                                      sprintf("%1.1f",ci_lb), "-",
-                                      sprintf("%1.1f",ci_ub), "]")) |> 
-        filter(!str_detect(flag, "Not available")) # remove rows with irrelevant data
 
-rep_unaids_hiv <- read_rds(here::here("data", "rep_unaids_hiv", "rep_unaids_hiv.rds")) 
+rep_imm <- read_rds(here::here("data", "rep_imm", "rep_imm.rds")) |> 
+  mutate(dataset_id_name = "Childhood immunization") |> 
+  select(-regcode)
+
+rep_tb <- read_rds(here::here("data", "rep_tb", "rep_tb.rds")) |> 
+  mutate(dataset_id_name = "Tuberculosis indicators")
+
+rep_unaids_hiv <- read_rds(here::here("data", "rep_unaids_hiv", "rep_unaids_hiv.rds")) |> 
+  mutate(dataset_id_name = "HIV epidemiological estimates") |> 
+  mutate(flag = as.character(flag))
+
+rep_comb <- 
+  rep_imm |> 
+  bind_rows(rep_tb) |> 
+  bind_rows(rep_unaids_hiv) |>
+  mutate(
+    year = sprintf("%1.0f",date),
+    date = ymd(paste0(date, "-01-01"))) |> # convert to date format
+  mutate(full_estimate = case_when(
+    estimate<0.01 ~ paste0(sprintf("%1.4f",estimate), " [", 
+                        sprintf("%1.4f",ci_lb), "-",
+                        sprintf("%1.4f",ci_ub), "]"),
+    estimate<0.1 ~ paste0(sprintf("%1.3f",estimate), " [", 
+                        sprintf("%1.3f",ci_lb), "-",
+                        sprintf("%1.3f",ci_ub), "]"),
+    estimate<2 ~ paste0(sprintf("%1.2f",estimate), " [", 
+                        sprintf("%1.2f",ci_lb), "-",
+                        sprintf("%1.2f",ci_ub), "]"),
+    .default = paste0(sprintf("%1.1f",estimate), " [", 
+                      sprintf("%1.1f",ci_lb), "-",
+                      sprintf("%1.1f",ci_ub), "]"))
+  ) #|> 
+# filter(!str_detect(flag, "Not available")) # remove rows with irrelevant data
+
+# rep_imm <- read_rds(here::here("data", "rep_imm", "rep_imm.rds")) |> 
+#         mutate(
+#                 year = sprintf("%1.0f",date),
+#                 date = ymd(paste0(date, "-01-01"))) |> # convert to date format
+#         mutate(full_estimate = paste0(sprintf("%1.1f",estimate), "% [", 
+#                                       sprintf("%1.1f",ci_lb), "-",
+#                                       sprintf("%1.1f",ci_ub), "]")) |> 
+#         filter(!str_detect(flag, "Not available")) # remove rows with irrelevant data
 ```
 
 #  {.sidebar width="320px"}
 ```{r}
 # Create the dropdown selection objects
 
+# Select the Dataset
+selectInput("selected_dataset", "Select Dataset:", 
+            choices = unique(rep_comb$dataset_id_name), 
+            selected = "Childhood immunization")
+
 # Select the Region
 selectInput("selected_region", "Select Region:", 
-            choices = c("All", unique(rep_imm$whoreg6)), 
+            choices = c("All", unique(rep_comb$whoreg6)), 
             selected = "European")
 
 # Select the Setting
-selectInput("selected_setting", "Select Setting:", 
-            choices = unique(rep_imm$setting),
+selectInput("selected_setting", "Select Setting(s):", 
+            choices = unique(rep_comb$setting),
             multiple = TRUE
             # , options = pickerOptions(
             #         actionsBox = TRUE,
@@ -61,42 +99,74 @@ selectInput("selected_setting", "Select Setting:",
 
 # Select the Indicator
 selectInput("selected_indicator", "Select Indicator:", 
-            choices = unique(rep_imm$indicator_name))
+            choices = unique(rep_comb$indicator_name))
 
 # Select the Dimension
 selectInput("selected_dimension", "Select Dimension:", 
-            choices = unique(rep_imm$dimension))
+            choices = unique(rep_comb$dimension))
 ```
 
 ```{r}
 #| context: server
 # Reactive expression to filter data to chosen Region
+filtered_dataset <- reactive({
+  rep_comb |> filter(dataset_id_name == input$selected_dataset) |> droplevels()
+})
+
+# Reactive expression to filter data to chosen Indicator
+filtered_indicator <- reactive({
+  filtered_dataset() |> 
+    filter(indicator_name == input$selected_indicator) |> 
+    droplevels()
+})
+
+# Reactive expression to filter data to chosen Region
 filtered_region <- reactive({
-        if(input$selected_region == "All") {
-                rep_imm
-        } else{
-                rep_imm |> filter(whoreg6 == input$selected_region) |> droplevels()
-        }
+  if(input$selected_region == "All") {
+    filtered_dataset()
+  } else{
+    filtered_dataset() |> 
+      filter(whoreg6 == input$selected_region) |> 
+      droplevels()
+  }
 })
 
 # Observe changes in the 'selected_region' input, and update setting choices
 observeEvent(input$selected_region, {
-        # Update the choices in the 'selected_indicateur' input
-        updateSelectInput(
-                session, "selected_setting",
-                choices = sort(unique(filtered_region()$setting))
-        )
+  # Update the choices in the 'selected_indicateur' input
+  updateSelectInput(
+    session, "selected_setting",
+    choices = sort(unique(filtered_region()$setting))
+  )
 })
 
 filtered_setting <- reactive({
-        if(length(input$selected_setting) == 0 || is.null(input$selected_setting)) {
-                filtered_region()
-        } else{
-                filtered_region() |>
-                        filter(setting %in% c(input$selected_setting)) |>
-                        mutate(setting = fct_relevel(setting, c(input$selected_setting))) |>
-                        droplevels()
-        }
+  if(length(input$selected_setting) == 0 || is.null(input$selected_setting)) {
+    filtered_region()
+  } else{
+    filtered_region() |>
+      filter(setting %in% c(input$selected_setting)) |>
+      mutate(setting = fct_relevel(setting, c(input$selected_setting))) |>
+      droplevels()
+  }
+})
+
+# Observe changes in the 'selected_dataset' input, and update indicator choices
+observeEvent(input$selected_dataset, {
+  # Update the choices in the 'selected_indicator' input
+  updateSelectInput(
+    session, "selected_indicator",
+    choices = sort(unique(filtered_dataset()$indicator_name))
+  )
+})
+
+# Observe changes in the 'selected_indicator' input, and update dimension choices
+observeEvent(input$selected_indicator, {
+  # Update the choices in the 'selected_indicator' input
+  updateSelectInput(
+    session, "selected_dimension",
+    choices = sort(unique(filtered_indicator()$dimension))
+  )
 })
 
 ```
@@ -105,12 +175,14 @@ filtered_setting <- reactive({
 This dashboard uses data from the WHO's ["Health Inequality Data Repository"](https://www.who.int/data/inequality-monitor/data):  
 
 -  [Childhood immunization (DHS/MICS/RHS re-analyzed by ICEH)](https://www.who.int/data/sets/health-inequality-monitor-dataset#immunization) (updated October 2024)  
+-  [Tuberculosis indicators](https://www.who.int/data/sets/health-inequality-monitor-dataset#tb) (updated June 2024)  
+-  [HIV epidemiological estimates (UNAIDS)](https://www.who.int/data/sets/health-inequality-monitor-dataset#unaids-hiv) (updated October 2024)  
 
 Next steps:  
 
--  Add confidence intervals to plots  
--  Add table for setting selections  
--  Add mapping component to country selection  
+-  Include option to add confidence intervals to plots  
+-  Add page to view and download filtered data
+-  Add mapping component to guide country selection?  
 :::
 
 ```{r}
@@ -125,28 +197,28 @@ Next steps:
 # })
 
 output$plotly_plot <- renderPlotly({ 
-    p <- make_lineplot(
-                dataset = filtered_setting(), 
-                # whoreg6_choice = input$selected_region,
-                indicator_name_choice = input$selected_indicator, 
-                dimension_choice = input$selected_dimension
-        )
-
-    ggplotly(
-            p,
-            tooltip = c("full_estimate", "year", "subgroup", "population")
-                    ) 
-  }) 
+  p <- make_lineplot(
+    dataset = filtered_setting(), 
+    # whoreg6_choice = input$selected_region,
+    indicator_name_choice = input$selected_indicator, 
+    dimension_choice = input$selected_dimension
+  )
+  
+  ggplotly(
+    p,
+    tooltip = c("full_estimate", "year", "subgroup")
+  ) 
+}) 
 
 # Create the ESS-like table (still issues rendering this)
 output$table <- renderUI(
-        htmltools_value(
-                make_table(
-                        dataset = filtered_setting(),
-                        caption_indicator = input$selected_indicator, 
-                        caption_dimension = input$selected_dimension
-                )
-        )
+  htmltools_value(
+    make_table(
+      dataset = filtered_setting(),
+      caption_indicator = input$selected_indicator, 
+      caption_dimension = input$selected_dimension
+    )
+  )
 )
 
 ```
