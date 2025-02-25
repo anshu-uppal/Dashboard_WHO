@@ -1,11 +1,11 @@
 ---
-title: "Childhood Immunization"
+title: "Dashboard example: WHO"
 author: "Anshu Uppal"
 format: 
         dashboard:
                 orientation: columns
                 nav-buttons: [github]
-                github: https://github.com/anshu-uppal/Dashboard_practice
+                github: https://github.com/anshu-uppal/Dashboard_WHO
 server: shiny
 
 ---
