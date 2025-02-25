@@ -2,7 +2,7 @@
 
 This dashboard is a small personal project to visualize data from three WHO datasets, using Quarto and Shiny to build an interactive dashboard.  
 
-A live version of this dashboard is hosted on [shinyapps.io](https://www.shinyapps.io/) and is available [here](https://anuppal.shinyapps.io/Dashboard_WHO/).  
+A live version of this dashboard is hosted on shinyapps.io and is available [here](https://anuppal.shinyapps.io/Dashboard_WHO/).  
 
 This dashboard uses data from the WHO's ["Health Inequality Data Repository"](https://www.who.int/data/inequality-monitor/data):  
 
