@@ -9,3 +9,9 @@ pacman::p_load(
 # Convert downloaded xlsx files to RDS format for easier downstream use
 rep_imm <- openxlsx::read.xlsx(here::here("data", "rep_imm", "data.xlsx"))
 saveRDS(rep_imm, here::here("data", "rep_imm", "rep_imm.rds"))
+
+rep_tb <- openxlsx::read.xlsx(here::here("data", "rep_tb", "data.xlsx"))
+saveRDS(rep_tb, here::here("data", "rep_tb", "rep_tb.rds"))
+
+rep_unaids_hiv <- openxlsx::read.xlsx(here::here("data", "rep_unaids_hiv", "data.xlsx"))
+saveRDS(rep_unaids_hiv, here::here("data", "rep_unaids_hiv", "rep_unaids_hiv.rds"))
