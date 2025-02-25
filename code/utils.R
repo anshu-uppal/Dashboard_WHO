@@ -54,29 +54,32 @@ make_lineplot <- function(
                 filter(dimension == dimension_choice) |>
                 droplevels() |> 
                 arrange(subgroup_order) |> 
-                mutate(subgroup = fct_inorder(subgroup)) |> 
+                mutate(
+                        subgroup = fct_inorder(subgroup)
+                ) |> 
                 filter(!is.na(estimate)) |> 
                 
                 # Generate the plot
                 ggplot()+
                 geom_point(aes(
                         x = date, y = estimate, color = subgroup,
-                        label1 = full_estimate, label2=year, label3=population)
+                        label1 = full_estimate, 
+                        label2=year
                         # ,size = population
-                )+
+                ))+
                 # geom_ribbon(aes(ymin = ci_lb, ymax = ci_ub, fill = subgroup), alpha = 0.2, color = NA)+
                 # geom_errorbar(aes(ymin = ci_lb, ymax = ci_ub), width = 100)+
                 geom_line(aes(x = date, y = estimate, color = subgroup))+
                 ggtitle(label = indicator_name_choice)+
-                labs(x = "Year", y = "%", color = dimension_choice
+                labs(x = "Year", y = "Estimate", color = dimension_choice
                      # , size = "Population"
                 )+
                 facet_wrap(.~setting, labeller = label_wrap_gen())+
                 theme_classic()+
                 theme(axis.text.x = element_text(
-                        angle = 20, vjust = 0.3
+                        angle = 30, vjust = 0.3
                         # , size = 12
-                        ))
+                ))
         p
 }
 
