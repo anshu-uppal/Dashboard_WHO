@@ -44,6 +44,7 @@ rep_comb <-
   rep_imm |> 
   bind_rows(rep_tb) |> 
   bind_rows(rep_unaids_hiv) |>
+  filter(!is.na(estimate)) |> 
   mutate(
     year = sprintf("%1.0f",date),
     date = ymd(paste0(date, "-01-01"))) |> # convert to date format
@@ -60,17 +61,9 @@ rep_comb <-
     .default = paste0(sprintf("%1.1f",estimate), " [", 
                       sprintf("%1.1f",ci_lb), "-",
                       sprintf("%1.1f",ci_ub), "]"))
-  ) #|> 
-# filter(!str_detect(flag, "Not available")) # remove rows with irrelevant data
+  ) |>
+  droplevels()
 
-# rep_imm <- read_rds(here::here("data", "rep_imm", "rep_imm.rds")) |> 
-#         mutate(
-#                 year = sprintf("%1.0f",date),
-#                 date = ymd(paste0(date, "-01-01"))) |> # convert to date format
-#         mutate(full_estimate = paste0(sprintf("%1.1f",estimate), "% [", 
-#                                       sprintf("%1.1f",ci_lb), "-",
-#                                       sprintf("%1.1f",ci_ub), "]")) |> 
-#         filter(!str_detect(flag, "Not available")) # remove rows with irrelevant data
 ```
 
 #  {.sidebar width="320px"}
