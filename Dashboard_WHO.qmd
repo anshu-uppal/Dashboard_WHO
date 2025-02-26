@@ -72,7 +72,7 @@ settings_map_data <- readRDS(here::here("data", "world_settings_matched.rds"))
 
 ```
 
-#  {.sidebar width="320px"}
+#  {.sidebar width="400px"}
 ```{r}
 # Create the dropdown selection objects
 
@@ -80,6 +80,14 @@ settings_map_data <- readRDS(here::here("data", "world_settings_matched.rds"))
 selectInput("selected_dataset", "Select Dataset:", 
             choices = unique(rep_comb$dataset_id_name), 
             selected = "Childhood immunization")
+
+# Select the Indicator
+selectInput("selected_indicator", "Select Indicator:", 
+            choices = unique(rep_comb$indicator_name))
+
+# Select the Dimension
+selectInput("selected_dimension", "Select Dimension:", 
+            choices = unique(rep_comb$dimension))
 
 # Select the Region
 selectInput("selected_region", "Select Region:", 
@@ -95,14 +103,6 @@ selectInput("selected_setting", "Select Setting(s):",
             #         selectOnTab = TRUE
             # )
 )
-
-# Select the Indicator
-selectInput("selected_indicator", "Select Indicator:", 
-            choices = unique(rep_comb$indicator_name))
-
-# Select the Dimension
-selectInput("selected_dimension", "Select Dimension:", 
-            choices = unique(rep_comb$dimension))
 ```
 
 ```{r}
@@ -150,6 +150,13 @@ filtered_setting <- reactive({
   }
 })
 
+filtered_map_settings <- reactive({
+  tibble(setting = unique(filtered_setting()$setting)) |> 
+    mutate(selected = "blue") |> right_join(settings_map_data) |> 
+    mutate(selected = case_when(is.na(selected) ~ "lightgreen", .default = selected)) |> 
+    st_as_sf()
+})
+
 # Observe changes in the 'selected_dataset' input, and update indicator choices
 observeEvent(input$selected_dataset, {
   # Update the choices in the 'selected_indicator' input
@@ -170,19 +177,10 @@ observeEvent(input$selected_indicator, {
 
 ```
 
-::: callout-note
-This dashboard uses data from the WHO's ["Health Inequality Data Repository"](https://www.who.int/data/inequality-monitor/data):  
-
--  [Childhood immunization (DHS/MICS/RHS re-analyzed by ICEH)](https://www.who.int/data/sets/health-inequality-monitor-dataset#immunization) (updated October 2024)  
--  [Tuberculosis indicators](https://www.who.int/data/sets/health-inequality-monitor-dataset#tb) (updated June 2024)  
--  [HIV epidemiological estimates (UNAIDS)](https://www.who.int/data/sets/health-inequality-monitor-dataset#unaids-hiv) (updated October 2024)  
-
-Next steps:  
-
--  Include option to add confidence intervals to plots  
--  Add page to view and download filtered data
--  Add mapping component to guide country selection?  
-:::
+## Map (in progress)
+```{r}
+leafletOutput("country_map")
+```
 
 ```{r}
 #| context: server
@@ -213,8 +211,8 @@ output$country_map <- renderLeaflet({
   leaflet() |> 
     addTiles() |> 
     addPolygons(
-      data = settings_map_data,
-      fillColor = "transparent",
+      data = filtered_map_settings(),
+      fillColor = filtered_map_settings()$selected,
       color = "black",  # Outline color
       weight = 1,
       label = ~htmltools::htmlEscape(admin)
@@ -240,17 +238,24 @@ output$table <- renderUI(
 <!-- ``` -->
 
 # Setting plots
-
-## Map filter
-```{r}
-leafletOutput("country_map")
-```
-
-## Plots
 ```{r}
 plotlyOutput(outputId = "plotly_plot")
 ```
 
+# Information
+::: callout-note
+This dashboard uses data from the WHO's ["Health Inequality Data Repository"](https://www.who.int/data/inequality-monitor/data):  
+
+-  [Childhood immunization (DHS/MICS/RHS re-analyzed by ICEH)](https://www.who.int/data/sets/health-inequality-monitor-dataset#immunization) (updated October 2024)  
+-  [Tuberculosis indicators](https://www.who.int/data/sets/health-inequality-monitor-dataset#tb) (updated June 2024)  
+-  [HIV epidemiological estimates (UNAIDS)](https://www.who.int/data/sets/health-inequality-monitor-dataset#unaids-hiv) (updated October 2024)  
+
+Next steps:  
+
+-  Include option to add confidence intervals to plots  
+-  Add page to view and download filtered data
+-  Add mapping component to guide country selection?  
+:::
 <!-- # Table -->
 <!-- ```{r} -->
 <!-- uiOutput("table") -->
