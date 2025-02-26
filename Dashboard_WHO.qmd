@@ -23,7 +23,10 @@ pacman::p_load(
   tidyverse,
   flextable,
   DT,
-  plotly
+  plotly,
+  leaflet,
+  sf,
+  htmltools
 )
 source(here::here("code", "utils.R"))
 
@@ -50,11 +53,11 @@ rep_comb <-
     date = ymd(paste0(date, "-01-01"))) |> # convert to date format
   mutate(full_estimate = case_when(
     estimate<0.01 ~ paste0(sprintf("%1.4f",estimate), " [", 
-                        sprintf("%1.4f",ci_lb), "-",
-                        sprintf("%1.4f",ci_ub), "]"),
+                           sprintf("%1.4f",ci_lb), "-",
+                           sprintf("%1.4f",ci_ub), "]"),
     estimate<0.1 ~ paste0(sprintf("%1.3f",estimate), " [", 
-                        sprintf("%1.3f",ci_lb), "-",
-                        sprintf("%1.3f",ci_ub), "]"),
+                          sprintf("%1.3f",ci_lb), "-",
+                          sprintf("%1.3f",ci_ub), "]"),
     estimate<2 ~ paste0(sprintf("%1.2f",estimate), " [", 
                         sprintf("%1.2f",ci_lb), "-",
                         sprintf("%1.2f",ci_ub), "]"),
@@ -63,6 +66,9 @@ rep_comb <-
                       sprintf("%1.1f",ci_ub), "]"))
   ) |>
   droplevels()
+
+# Map data
+settings_map_data <- readRDS(here::here("data", "world_settings_matched.rds"))
 
 ```
 
@@ -203,6 +209,18 @@ output$plotly_plot <- renderPlotly({
   ) 
 }) 
 
+output$country_map <- renderLeaflet({
+  leaflet() |> 
+    addTiles() |> 
+    addPolygons(
+      data = settings_map_data,
+      fillColor = "transparent",
+      color = "black",  # Outline color
+      weight = 1,
+      label = ~htmltools::htmlEscape(admin)
+    )
+})
+
 # Create the ESS-like table (still issues rendering this)
 output$table <- renderUI(
   htmltools_value(
@@ -222,6 +240,13 @@ output$table <- renderUI(
 <!-- ``` -->
 
 # Setting plots
+
+## Map filter
+```{r}
+leafletOutput("country_map")
+```
+
+## Plots
 ```{r}
 plotlyOutput(outputId = "plotly_plot")
 ```
