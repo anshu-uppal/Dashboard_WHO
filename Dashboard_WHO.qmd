@@ -150,12 +150,16 @@ filtered_setting <- reactive({
   }
 })
 
-filtered_map_settings <- reactive({
-  tibble(setting = unique(filtered_setting()$setting)) |> 
-    mutate(selected = "blue") |> right_join(settings_map_data) |> 
-    mutate(selected = case_when(is.na(selected) ~ "lightgreen", .default = selected)) |> 
-    st_as_sf()
-})
+# filtered_map_settings <- reactive({
+#   tibble(setting = unique(filtered_setting()$setting)) |>
+#     mutate(selected = "blue") |> 
+#     right_join(settings_map_data |> # join with map data
+#                  # filter map data to include only relevant settings
+#                  filter(setting %in% c(unique(filtered_dataset()$setting)))
+#                ) |>
+#     mutate(selected = case_when(is.na(selected) ~ "lightgreen", .default = selected)) |>
+#     st_as_sf()
+# })
 
 # Observe changes in the 'selected_dataset' input, and update indicator choices
 observeEvent(input$selected_dataset, {
@@ -177,10 +181,10 @@ observeEvent(input$selected_indicator, {
 
 ```
 
-## Map (in progress)
-```{r}
-leafletOutput("country_map")
-```
+<!-- ## Map (in progress) -->
+<!-- ```{r} -->
+<!-- leafletOutput("country_map") -->
+<!-- ``` -->
 
 ```{r}
 #| context: server
@@ -207,17 +211,17 @@ output$plotly_plot <- renderPlotly({
   ) 
 }) 
 
-output$country_map <- renderLeaflet({
-  leaflet() |> 
-    addTiles() |> 
-    addPolygons(
-      data = filtered_map_settings(),
-      fillColor = filtered_map_settings()$selected,
-      color = "black",  # Outline color
-      weight = 1,
-      label = ~htmltools::htmlEscape(admin)
-    )
-})
+# output$country_map <- renderLeaflet({
+#   leaflet() |>
+#     addTiles() |>
+#     addPolygons(
+#       data = filtered_map_settings(),
+#       fillColor = filtered_map_settings()$selected,
+#       color = "black",  # Outline color
+#       weight = 1,
+#       label = ~htmltools::htmlEscape(admin)
+#     )
+# })
 
 # Create the ESS-like table (still issues rendering this)
 output$table <- renderUI(
@@ -255,6 +259,9 @@ Next steps:
 -  Include option to add confidence intervals to plots  
 -  Add page to view and download filtered data
 -  Add mapping component to guide country selection?  
+    -  Added a basic map showing the available and selected settings  
+    -  Fun to tinker with this, but it does slow down the rendering.  
+    -  Temporarily deactivated while working on speeding it up.
 :::
 <!-- # Table -->
 <!-- ```{r} -->
