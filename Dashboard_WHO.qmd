@@ -31,41 +31,10 @@ pacman::p_load(
 source(here::here("code", "utils.R"))
 
 # Load data
-
-rep_imm <- read_rds(here::here("data", "rep_imm", "rep_imm.rds")) |> 
-  mutate(dataset_id_name = "Childhood immunization") |> 
-  select(-regcode)
-
-rep_tb <- read_rds(here::here("data", "rep_tb", "rep_tb.rds")) |> 
-  mutate(dataset_id_name = "Tuberculosis indicators")
-
-rep_unaids_hiv <- read_rds(here::here("data", "rep_unaids_hiv", "rep_unaids_hiv.rds")) |> 
-  mutate(dataset_id_name = "HIV epidemiological estimates") |> 
-  mutate(flag = as.character(flag))
-
-rep_comb <- 
-  rep_imm |> 
-  bind_rows(rep_tb) |> 
-  bind_rows(rep_unaids_hiv) |>
-  filter(!is.na(estimate)) |> 
-  mutate(
-    year = sprintf("%1.0f",date),
-    date = ymd(paste0(date, "-01-01"))) |> # convert to date format
-  mutate(full_estimate = case_when(
-    estimate<0.01 ~ paste0(sprintf("%1.4f",estimate), " [", 
-                           sprintf("%1.4f",ci_lb), "-",
-                           sprintf("%1.4f",ci_ub), "]"),
-    estimate<0.1 ~ paste0(sprintf("%1.3f",estimate), " [", 
-                          sprintf("%1.3f",ci_lb), "-",
-                          sprintf("%1.3f",ci_ub), "]"),
-    estimate<2 ~ paste0(sprintf("%1.2f",estimate), " [", 
-                        sprintf("%1.2f",ci_lb), "-",
-                        sprintf("%1.2f",ci_ub), "]"),
-    .default = paste0(sprintf("%1.1f",estimate), " [", 
-                      sprintf("%1.1f",ci_lb), "-",
-                      sprintf("%1.1f",ci_ub), "]"))
-  ) |>
-  droplevels()
+rep_comb <- readRDS(here::here("data", "combined_dataset.rds"))
+dataset_settings <- rep_comb |> group_by(dataset_id_name) |> count(setting) |> 
+  mutate(setting_available = TRUE) |> 
+  select(-n)
 
 # Map data
 settings_map_data <- readRDS(here::here("data", "world_settings_matched.rds"))
@@ -109,7 +78,9 @@ selectInput("selected_setting", "Select Setting(s):",
 #| context: server
 # Reactive expression to filter data to chosen Region
 filtered_dataset <- reactive({
-  rep_comb |> filter(dataset_id_name == input$selected_dataset) |> droplevels()
+  rep_comb |> 
+    filter(dataset_id_name == input$selected_dataset) |> 
+    droplevels()
 })
 
 # Reactive expression to filter data to chosen Indicator
@@ -152,12 +123,19 @@ filtered_setting <- reactive({
 
 # filtered_map_settings <- reactive({
 #   tibble(setting = unique(filtered_setting()$setting)) |>
-#     mutate(selected = "blue") |> 
-#     right_join(settings_map_data |> # join with map data
-#                  # filter map data to include only relevant settings
-#                  filter(setting %in% c(unique(filtered_dataset()$setting)))
-#                ) |>
-#     mutate(selected = case_when(is.na(selected) ~ "lightgreen", .default = selected)) |>
+#     mutate(selected = "blue") |>
+#     right_join(
+#       settings_map_data |> # join with dataset to get countries available
+#         left_join(dataset_settings |> 
+#                                 filter(dataset_id_name == input$selected_dataset)
+#                   )
+#     ) |>
+#     mutate(selected = case_when(
+#       is.na(setting) ~ "grey70",
+#       !setting_available ~ "grey70",
+#       is.na(selected) ~ "lightgreen",
+#       .default = selected)
+#     ) |>
 #     st_as_sf()
 # })
 
@@ -181,10 +159,10 @@ observeEvent(input$selected_indicator, {
 
 ```
 
-<!-- ## Map (in progress) -->
-<!-- ```{r} -->
-<!-- leafletOutput("country_map") -->
-<!-- ``` -->
+## Map (in progress)
+```{r}
+leafletOutput("country_map")
+```
 
 ```{r}
 #| context: server
@@ -211,17 +189,52 @@ output$plotly_plot <- renderPlotly({
   ) 
 }) 
 
-# output$country_map <- renderLeaflet({
-#   leaflet() |>
-#     addTiles() |>
-#     addPolygons(
-#       data = filtered_map_settings(),
-#       fillColor = filtered_map_settings()$selected,
-#       color = "black",  # Outline color
-#       weight = 1,
-#       label = ~htmltools::htmlEscape(admin)
-#     )
-# })
+# Layer of all countries
+output$country_map <- renderLeaflet({
+  leaflet() |>
+    addTiles() |>
+    addPolygons(
+                data = settings_map_data,
+                fillColor = "grey50",
+                color = "black",  # Outline color
+                weight = 1,
+                label = ~htmltools::htmlEscape(admin)
+    )
+})
+
+# Layer of countries available in dataset
+observeEvent(input$selected_dataset, {
+  leafletProxy("country_map", session) |> 
+    clearGroup("available_countries") |> 
+    addPolygons(
+                data = settings_map_data |> filter(
+                        setting %in% unique(filtered_dataset()$setting)),
+                group = "available_countries",
+                fillColor = "lightgreen",
+                color = "black",  # Outline color
+                weight = 1,
+                label = ~htmltools::htmlEscape(admin)
+        )
+})
+
+# Layer of countries available in selected region
+observeEvent({
+  input$selected_dataset 
+  input$selected_region
+  # input$selected_setting
+  }, {
+  leafletProxy("country_map", session) |> 
+    clearGroup("selected_countries") |> 
+    addPolygons(
+                data = settings_map_data |> filter(
+                        setting %in% unique(filtered_setting()$setting)),
+                group = "selected_countries",
+                fillColor = "blue",
+                color = "black",  # Outline color
+                weight = 1,
+                label = ~htmltools::htmlEscape(admin)
+        )
+})
 
 # Create the ESS-like table (still issues rendering this)
 output$table <- renderUI(
@@ -259,9 +272,9 @@ Next steps:
 -  Include option to add confidence intervals to plots  
 -  Add page to view and download filtered data
 -  Add mapping component to guide country selection?  
-    -  Added a basic map showing the available and selected settings  
-    -  Fun to tinker with this, but it does slow down the rendering.  
-    -  Temporarily deactivated while working on speeding it up.
+-  Added a basic map showing the available and selected settings  
+-  Fun to tinker with this, but it does slow down the rendering.  
+-  Temporarily deactivated while working on speeding it up.
 :::
 <!-- # Table -->
 <!-- ```{r} -->
