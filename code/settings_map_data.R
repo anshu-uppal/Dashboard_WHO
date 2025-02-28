@@ -8,9 +8,7 @@ pacman::p_load(
 # Read in combined dataset
 rep_comb <- readRDS(here::here("data", "combined_dataset.rds"))
 
-# Map data
-settings_map_data <- readRDS(here::here("data", "world_settings_matched.rds"))
-
+# Get world map data
 world <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf")
 world_filtered <- world |> filter(name_long != "Antarctica") |> 
         relocate(admin, name_long) |> 
