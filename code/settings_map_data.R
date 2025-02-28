@@ -5,6 +5,12 @@ pacman::p_load(
         fuzzyjoin
 )
 
+# Read in combined dataset
+rep_comb <- readRDS(here::here("data", "combined_dataset.rds"))
+
+# Map data
+settings_map_data <- readRDS(here::here("data", "world_settings_matched.rds"))
+
 world <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf")
 world_filtered <- world |> filter(name_long != "Antarctica") |> 
         relocate(admin, name_long) |> 
@@ -65,18 +71,11 @@ settings_remaining <- world_settings_b |>
 world_settings_matched <- 
         world_settings |> 
         filter(dist ==0) |> 
-        bind_rows(world_settings_b |> filter(dist == 0)) |> 
-        st_as_sf()
+        bind_rows(world_settings_b |> filter(dist == 0))
 
+world_final <- world_filtered |> 
+        left_join(world_settings_matched |> select(setting, admin)) |> 
+        st_as_sf() |> 
+        select(setting, admin)
 
-world_c <- anti_join(world_filtered, 
-                     world_settings_matched |> select(admin))
-
-saveRDS(world_settings_matched, here::here("data", "world_settings_matched.rds"))
-# leaflet(world_settings_matched) %>%
-#         addPolygons(
-#                 fillColor = "transparent",
-#                 color = "black",  # Outline color
-#                 weight = 1,
-#                 label = ~htmltools::htmlEscape(admin)
-#         ) 
+saveRDS(world_final, here::here("data", "world_settings_matched.rds"))
