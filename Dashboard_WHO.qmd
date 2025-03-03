@@ -38,7 +38,6 @@ dataset_settings <- rep_comb |> group_by(dataset_id_name) |> count(setting) |>
 
 # Map data
 settings_map_data <- readRDS(here::here("data", "world_settings_matched.rds"))
-
 ```
 
 #  {.sidebar width="400px"}
@@ -64,7 +63,7 @@ selectInput("selected_region", "Select Region:",
             selected = "European")
 
 # Select the Setting
-selectInput("selected_setting", "Select Setting(s):", 
+selectInput("selected_setting", "Select Setting(s):",
             choices = unique(rep_comb$setting),
             multiple = TRUE
             # , options = pickerOptions(
@@ -72,6 +71,14 @@ selectInput("selected_setting", "Select Setting(s):",
             #         selectOnTab = TRUE
             # )
 )
+
+# pickerInput("selected_setting", "Select Setting(s):", 
+#             choices = unique(rep_comb$setting) |> sort(),
+#             # choices = c("India", "Pakistan", "Albania", "Switzerland"),
+#             options = list(`actions-box` = TRUE),
+#             multiple = TRUE,
+#             selected = unique(rep_comb$setting) |> sort()
+# )
 ```
 
 ```{r}
@@ -106,12 +113,13 @@ observeEvent(input$selected_region, {
   # Update the choices in the 'selected_indicateur' input
   updateSelectInput(
     session, "selected_setting",
-    choices = sort(unique(filtered_region()$setting))
+    choices = sort(unique(filtered_region()$setting)),
+    selected = sort(unique(filtered_region()$setting))
   )
 })
 
 filtered_setting <- reactive({
-  if(length(input$selected_setting) == 0 || is.null(input$selected_setting)) {
+  if(length(input$selected_setting) == 0 | is.null(input$selected_setting)) {
     filtered_region()
   } else{
     filtered_region() |>
@@ -120,24 +128,6 @@ filtered_setting <- reactive({
       droplevels()
   }
 })
-
-# filtered_map_settings <- reactive({
-#   tibble(setting = unique(filtered_setting()$setting)) |>
-#     mutate(selected = "blue") |>
-#     right_join(
-#       settings_map_data |> # join with dataset to get countries available
-#         left_join(dataset_settings |> 
-#                                 filter(dataset_id_name == input$selected_dataset)
-#                   )
-#     ) |>
-#     mutate(selected = case_when(
-#       is.na(setting) ~ "grey70",
-#       !setting_available ~ "grey70",
-#       is.na(selected) ~ "lightgreen",
-#       .default = selected)
-#     ) |>
-#     st_as_sf()
-# })
 
 # Observe changes in the 'selected_dataset' input, and update indicator choices
 observeEvent(input$selected_dataset, {
@@ -192,13 +182,13 @@ output$plotly_plot <- renderPlotly({
 # Layer of all countries
 output$country_map <- renderLeaflet({
   leaflet() |>
-    addTiles() |>
+    # addTiles() |>
     addPolygons(
                 data = settings_map_data,
                 fillColor = "grey50",
                 color = "black",  # Outline color
                 weight = 1,
-                label = ~htmltools::htmlEscape(admin)
+                label = ~htmltools::htmlEscape(admin2)
     )
 })
 
@@ -211,9 +201,10 @@ observeEvent(input$selected_dataset, {
                         setting %in% unique(filtered_dataset()$setting)),
                 group = "available_countries",
                 fillColor = "lightgreen",
+                fillOpacity = 0.2,
                 color = "black",  # Outline color
                 weight = 1,
-                label = ~htmltools::htmlEscape(admin)
+                label = ~htmltools::htmlEscape(admin2)
         )
 })
 
@@ -221,7 +212,7 @@ observeEvent(input$selected_dataset, {
 observeEvent({
   input$selected_dataset 
   input$selected_region
-  # input$selected_setting
+  input$selected_setting
   }, {
   leafletProxy("country_map", session) |> 
     clearGroup("selected_countries") |> 
@@ -229,10 +220,11 @@ observeEvent({
                 data = settings_map_data |> filter(
                         setting %in% unique(filtered_setting()$setting)),
                 group = "selected_countries",
-                fillColor = "blue",
+                fillColor = "red",
+                fillOpacity = 1,
                 color = "black",  # Outline color
                 weight = 1,
-                label = ~htmltools::htmlEscape(admin)
+                label = ~htmltools::htmlEscape(admin2)
         )
 })
 
