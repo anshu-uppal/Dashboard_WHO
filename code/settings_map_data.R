@@ -1,4 +1,6 @@
 pacman::p_load(
+        here,
+        tidyverse,
         htmltools,
         sf,
         rnaturalearth,
