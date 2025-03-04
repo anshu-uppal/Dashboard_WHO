@@ -3,11 +3,13 @@
 
 pacman::p_load(
         here,
-        tidyverse
+        tidyverse,
+        sf,
+        rnaturalearth
 )
 
 # # Convert downloaded xlsx files to RDS format for easier downstream use ####
-# # Uncomment these below lines if not already generated:
+# # Uncomment lines below and run if not already generated:
 # rep_imm <- openxlsx::read.xlsx(here::here("data", "rep_imm", "data.xlsx"))
 # saveRDS(rep_imm, here::here("data", "rep_imm", "rep_imm.rds"))
 # 
@@ -18,7 +20,7 @@ pacman::p_load(
 # saveRDS(rep_unaids_hiv, here::here("data", "rep_unaids_hiv", "rep_unaids_hiv.rds"))
 
 
-# Read in data ####
+# Read in datasets ####
 rep_imm <- readRDS(here::here("data", "rep_imm", "rep_imm.rds")) |> 
         mutate(dataset_id_name = "Childhood immunization") |> 
         select(-regcode)
@@ -35,6 +37,7 @@ rep_comb <-
         rep_imm |> 
         bind_rows(rep_tb) |> 
         bind_rows(rep_unaids_hiv) |>
+        # Remove rows with no estimate data
         filter(!is.na(estimate)) |> 
         mutate(
                 year = sprintf("%1.0f",date),
@@ -56,5 +59,29 @@ rep_comb <-
         ) |>
         droplevels()
 
+# Join with world map data ####
+world_final <- 
+        # Get the map data
+        rnaturalearth::ne_countries(scale = "large", returnclass = "sf") |> 
+        filter(name_long != "Antarctica") |> 
+        select(admin, name_long, 
+               iso_a3,iso_a3_eh, # Country codes for matching with setting data
+               formal_en, 
+               pop_est:income_grp) |> 
+        # Merge the map data with our settings data
+        left_join(
+                rep_comb |> select(setting, iso3) |> distinct(), 
+                by = join_by(iso_a3_eh == iso3)
+        ) |> 
+        # Add a variable to use the "admin" name when "setting" is NA
+        mutate(admin2 = case_when(
+                is.na(setting) ~ admin,
+                .default = setting
+        )) |> 
+        relocate(setting, admin, admin2)
+
+# Save data ####
 # Save combined dataset
 saveRDS(rep_comb, here::here("data", "combined_dataset.rds"))
+# Save the mapping data
+saveRDS(world_final, here::here("data", "world_settings_matched.rds"))
