@@ -26,7 +26,8 @@ pacman::p_load(
   plotly,
   leaflet,
   sf,
-  htmltools
+  htmltools,
+  shinycssloaders # for adding spinner while plots load
 )
 source(here::here("code", "utils.R"))
 
@@ -113,8 +114,8 @@ observeEvent(input$selected_region, {
   # Update the choices in the 'selected_indicateur' input
   updateSelectInput(
     session, "selected_setting",
-    choices = sort(unique(filtered_region()$setting)),
-    selected = sort(unique(filtered_region()$setting))
+    choices = sort(unique(filtered_region()$setting))
+    # , selected = sort(unique(filtered_region()$setting))
   )
 })
 
@@ -151,7 +152,7 @@ observeEvent(input$selected_indicator, {
 
 ## Map (in progress)
 ```{r}
-leafletOutput("country_map")
+shinycssloaders::withSpinner(leafletOutput("country_map"), color = "blue")
 ```
 
 ```{r}
@@ -201,7 +202,7 @@ observeEvent(input$selected_dataset, {
                         setting %in% unique(filtered_dataset()$setting)),
                 group = "available_countries",
                 fillColor = "lightgreen",
-                fillOpacity = 0.2,
+                fillOpacity = 0.4,
                 color = "black",  # Outline color
                 weight = 1,
                 label = ~htmltools::htmlEscape(admin2)
@@ -212,7 +213,7 @@ observeEvent(input$selected_dataset, {
 observeEvent({
   input$selected_dataset 
   input$selected_region
-  input$selected_setting
+  # input$selected_setting
   }, {
   leafletProxy("country_map", session) |> 
     clearGroup("selected_countries") |> 
@@ -247,8 +248,9 @@ output$table <- renderUI(
 <!-- ``` -->
 
 # Setting plots
+
 ```{r}
-plotlyOutput(outputId = "plotly_plot")
+shinycssloaders::withSpinner(plotlyOutput(outputId = "plotly_plot"), color = "blue")
 ```
 
 # Information
@@ -259,14 +261,13 @@ This dashboard uses data from the WHO's ["Health Inequality Data Repository"](ht
 -  [Tuberculosis indicators](https://www.who.int/data/sets/health-inequality-monitor-dataset#tb) (updated June 2024)  
 -  [HIV epidemiological estimates (UNAIDS)](https://www.who.int/data/sets/health-inequality-monitor-dataset#unaids-hiv) (updated October 2024)  
 
-Next steps:  
+**Next steps:**  
 
 -  Include option to add confidence intervals to plots  
 -  Add page to view and download filtered data
 -  Add mapping component to guide country selection?  
 -  Added a basic map showing the available and selected settings  
--  Fun to tinker with this, but it does slow down the rendering.  
--  Temporarily deactivated while working on speeding it up.
+    -  Fun to tinker with this, but it does slow down the rendering.
 :::
 <!-- # Table -->
 <!-- ```{r} -->
