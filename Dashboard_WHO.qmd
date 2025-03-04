@@ -152,7 +152,7 @@ observeEvent(input$selected_indicator, {
 
 ## Map (in progress)
 ```{r}
-shinycssloaders::withSpinner(leafletOutput("country_map"), color = "blue")
+shinycssloaders::withSpinner(leafletOutput("country_map"), color = "#0275D8")
 ```
 
 ```{r}
@@ -247,10 +247,11 @@ output$table <- renderUI(
 <!-- plotOutput("plot") -->
 <!-- ``` -->
 
-# Setting plots
+# Plot data
 
 ```{r}
-shinycssloaders::withSpinner(plotlyOutput(outputId = "plotly_plot"), color = "blue")
+#| title: Settings with available data
+plotlyOutput(outputId = "plotly_plot")
 ```
 
 # Information
