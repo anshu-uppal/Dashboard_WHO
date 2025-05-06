@@ -41,6 +41,12 @@ dataset_settings <- rep_comb |> group_by(dataset_id_name) |> count(setting) |>
 settings_map_data <- readRDS(here::here("data", "world_settings_matched.rds"))
 ```
 
+```{css}
+/* set DT table fontsizes */
+th { font-size: 11px; } /* header font */
+td { font-size: 11px; } /* cell font */
+```
+
 #  {.sidebar width="400px"}
 ```{r}
 # Create the dropdown selection objects
@@ -72,6 +78,9 @@ selectInput("selected_setting", "Select Setting(s):",
             #         selectOnTab = TRUE
             # )
 )
+
+# Buttons
+downloadButton("downloadData", "Download data")
 
 # pickerInput("selected_setting", "Select Setting(s):", 
 #             choices = unique(rep_comb$setting) |> sort(),
@@ -150,10 +159,10 @@ observeEvent(input$selected_indicator, {
 
 ```
 
-## Map (in progress)
-```{r}
-shinycssloaders::withSpinner(leafletOutput("country_map"), color = "#0275D8")
-```
+<!-- ## Map (in progress) -->
+<!-- ```{r} -->
+<!-- shinycssloaders::withSpinner(leafletOutput("country_map"), color = "#0275D8") -->
+<!-- ``` -->
 
 ```{r}
 #| context: server
@@ -180,64 +189,86 @@ output$plotly_plot <- renderPlotly({
   ) 
 }) 
 
-# Layer of all countries
-output$country_map <- renderLeaflet({
-  leaflet() |>
-    # addTiles() |>
-    addPolygons(
-                data = settings_map_data,
-                fillColor = "grey50",
-                color = "black",  # Outline color
-                weight = 1,
-                label = ~htmltools::htmlEscape(admin2)
-    )
-})
+# # Layer of all countries
+# output$country_map <- renderLeaflet({
+#   leaflet() |>
+#     # addTiles() |>
+#     addPolygons(
+#                 data = settings_map_data,
+#                 fillColor = "grey50",
+#                 color = "black",  # Outline color
+#                 weight = 1,
+#                 label = ~htmltools::htmlEscape(admin2)
+#     )
+# })
+# 
+# # Layer of countries available in dataset
+# observeEvent(input$selected_dataset, {
+#   leafletProxy("country_map", session) |> 
+#     clearGroup("available_countries") |> 
+#     addPolygons(
+#                 data = settings_map_data |> filter(
+#                         setting %in% unique(filtered_dataset()$setting)),
+#                 group = "available_countries",
+#                 fillColor = "lightgreen",
+#                 fillOpacity = 0.4,
+#                 color = "black",  # Outline color
+#                 weight = 1,
+#                 label = ~htmltools::htmlEscape(admin2)
+#         )
+# })
+# 
+# # Layer of countries available in selected region
+# observeEvent({
+#   input$selected_dataset 
+#   input$selected_region
+#   # input$selected_setting
+#   }, {
+#   leafletProxy("country_map", session) |> 
+#     clearGroup("selected_countries") |> 
+#     addPolygons(
+#                 data = settings_map_data |> filter(
+#                         setting %in% unique(filtered_setting()$setting)),
+#                 group = "selected_countries",
+#                 fillColor = "red",
+#                 fillOpacity = 1,
+#                 color = "black",  # Outline color
+#                 weight = 1,
+#                 label = ~htmltools::htmlEscape(admin2)
+#         )
+# })
 
-# Layer of countries available in dataset
-observeEvent(input$selected_dataset, {
-  leafletProxy("country_map", session) |> 
-    clearGroup("available_countries") |> 
-    addPolygons(
-                data = settings_map_data |> filter(
-                        setting %in% unique(filtered_dataset()$setting)),
-                group = "available_countries",
-                fillColor = "lightgreen",
-                fillOpacity = 0.4,
-                color = "black",  # Outline color
-                weight = 1,
-                label = ~htmltools::htmlEscape(admin2)
-        )
-})
-
-# Layer of countries available in selected region
-observeEvent({
-  input$selected_dataset 
-  input$selected_region
-  # input$selected_setting
-  }, {
-  leafletProxy("country_map", session) |> 
-    clearGroup("selected_countries") |> 
-    addPolygons(
-                data = settings_map_data |> filter(
-                        setting %in% unique(filtered_setting()$setting)),
-                group = "selected_countries",
-                fillColor = "red",
-                fillOpacity = 1,
-                color = "black",  # Outline color
-                weight = 1,
-                label = ~htmltools::htmlEscape(admin2)
-        )
-})
+# # Create the ESS-like table (still issues rendering this)
+# output$table <- renderUI(
+#   htmltools_value(
+#     make_table(
+#       dataset = filtered_setting(),
+#       caption_indicator = input$selected_indicator, 
+#       caption_dimension = input$selected_dimension
+#     )
+#   )
+# )
 
 # Create the ESS-like table (still issues rendering this)
-output$table <- renderUI(
-  htmltools_value(
-    make_table(
-      dataset = filtered_setting(),
-      caption_indicator = input$selected_indicator, 
-      caption_dimension = input$selected_dimension
-    )
-  )
+output$DT_table <- renderDT(
+  filtered_setting() |> 
+    mutate(across(c(estimate:population, setting_average), ~ round(.x, 2))) |> 
+    select(-flag) |> 
+    relocate(full_estimate, .after = subgroup)
+)
+
+# Downloadable csv of selected dataset ----
+output$downloadData <- downloadHandler(
+  filename = function() {
+    paste0(input$selected_dataset, "_", input$selected_region, ".csv")
+  },
+  content = function(file) {
+    write_csv(
+      filtered_setting() |> 
+        select(-flag) |> 
+        relocate(full_estimate, .after = subgroup), 
+      file)
+  }
 )
 
 ```
@@ -247,11 +278,16 @@ output$table <- renderUI(
 <!-- plotOutput("plot") -->
 <!-- ``` -->
 
-# Plot data
+# Plots
 
 ```{r}
 #| title: Settings with available data
 plotlyOutput(outputId = "plotly_plot")
+```
+
+# Data
+```{r}
+DTOutput("DT_table")
 ```
 
 # Information
@@ -267,8 +303,8 @@ This dashboard uses data from the WHO's ["Health Inequality Data Repository"](ht
 -  Include option to add confidence intervals to plots  
 -  Add page to view and download filtered data
 -  Add mapping component to guide country selection?  
--  Added a basic map showing the available and selected settings  
-    -  Fun to tinker with this, but it does slow down the rendering.
+-  Add a basic map showing the available and selected settings  
+-  Fun to tinker with this, but it does slow down the rendering.
 :::
 <!-- # Table -->
 <!-- ```{r} -->
